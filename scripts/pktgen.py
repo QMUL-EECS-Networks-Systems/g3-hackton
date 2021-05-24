@@ -43,7 +43,7 @@ class RETH(Packet):
 	name = "RDMA RETH"
 	fields_desc = [
 		BitField("virtualAddress", 0, 64),
-		LongField("rKey", 0),
+		IntField("rKey", 0),
 		IntField("dmaLength", 0)
 		
 	]
@@ -65,9 +65,11 @@ def makeRocev2Write(payload=0xdeadbeef, address=0x0):
 	virtualAddress = address #Start of buffer
 	rKey = 0 #Kinda like the password
 	
+	
 	iCRC_checksum = 0 #TODO: calculate this? Or ignore?
 	
 	payload = struct.pack(">I", payload)
+	#virtualAddress = struct.pack(">Q", virtualAddress)
 	
 	packetSequenceNumber = packetSequenceNumber + 1
 
@@ -98,7 +100,9 @@ def makeUDPPacket():
 i = 0
 while True:
 	i = i + 1
-	address = random.randint(0, 2**64-1)
+	#address = random.randint(0, 2**64-1)
+	#address = 2**63
+	address = 50
 	pkt = makeRocev2Write(payload=i, address=address)
 	print("Sending packet", pkt)
 	sendp(pkt, iface="p0")
