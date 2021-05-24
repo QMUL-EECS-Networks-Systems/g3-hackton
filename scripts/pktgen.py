@@ -45,7 +45,6 @@ class RETH(Packet):
 		BitField("virtualAddress", 0, 64),
 		IntField("rKey", 0),
 		IntField("dmaLength", 0)
-		
 	]
 
 class iCRC(Packet):
@@ -97,14 +96,27 @@ def makeUDPPacket():
 
 
 
-i = 0
+numFlows = 5
+flowHashes = []
+for flowID in range(numFlows):
+	flowHash = random.randint(0,2**64-1)
+	flowHashes.append(flowHash)
+
+#Send traffic
+flowID = 0
 while True:
-	i = i + 1
-	#address = random.randint(0, 2**64-1)
-	#address = 2**63
-	address = 50
-	pkt = makeRocev2Write(payload=i, address=address)
+	flowID += 1
+	if flowID >= numFlows:
+		flowID = 0
+	
+	payload = flowID
+	address = flowHashes[flowID]
+	
+	print("Transmitting for flow %i" %flowID)
+	
+	pkt = makeRocev2Write(payload=payload, address=address)
 	print("Sending packet", pkt)
 	sendp(pkt, iface="p0")
 	wrpcap("rocev2_pkt.pcap",pkt)
-	time.sleep(1)
+	
+	time.sleep(0.5)
