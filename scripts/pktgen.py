@@ -6,14 +6,21 @@ from scapy.all import *
 import random
 import sys
 import struct
+import time
+import random
 
 #dstMAC = "56:2B:95:DB:33:39"
-dstMAC = "b8:ce:f6:61:a0:f6"
+#dstMAC = "b8:ce:f6:61:a0:f6"
 #dstMAC = "ff:ff:ff:ff:ff:ff"
 #dstMAC = "b8:ce:f6:61:9f:96" #host
 
+#dstMAC = "b8:ce:f6:61:9f:96" #host13
+dstMAC = "b8:ce:f6:61:9f:9a" #dpu13
+
 srcIP = "11.11.11.1"
 dstIP = "11.11.11.2"
+
+rocev2_port = 4790 #Default RoCEv2=4791
 
 
 class BTH(Packet):
@@ -35,7 +42,7 @@ class BTH(Packet):
 class RETH(Packet):
 	name = "RDMA RETH"
 	fields_desc = [
-		IntField("virtualAddress", 0),
+		BitField("virtualAddress", 0, 64),
 		LongField("rKey", 0),
 		IntField("dmaLength", 0)
 		
@@ -49,21 +56,25 @@ class iCRC(Packet):
 	]
 
 #Make RDMA write packet with 32bit payload
-def makeRocev2Write(payload=0xdeadbeef):
+packetSequenceNumber = 0
+def makeRocev2Write(payload=0xdeadbeef, address=0x0):
+	global packetSequenceNumber
 	partitionKey = 0
 	destinationQP = 0
 	dmaLength = 32
-	virtualAddress = 0 #Start of buffer
+	virtualAddress = address #Start of buffer
 	rKey = 0 #Kinda like the password
 	
 	iCRC_checksum = 0 #TODO: calculate this? Or ignore?
 	
 	payload = struct.pack(">I", payload)
 	
+	packetSequenceNumber = packetSequenceNumber + 1
+
 	pkt = Ether(src="b8:ce:f6:61:a0:f2",dst=dstMAC)
 	pkt = pkt/IP(src=srcIP,dst=dstIP,ihl=5,flags=0b010,proto=0x11)
-	pkt = pkt/UDP(sport=0xc0de,dport=4791,chksum=0)
-	pkt = pkt/BTH(opcode=0b01010,partitionKey=partitionKey,destinationQP=destinationQP) #WRITE-ONLY
+	pkt = pkt/UDP(sport=0xc0de,dport=rocev2_port,chksum=0)
+	pkt = pkt/BTH(opcode=0b01010,partitionKey=partitionKey,destinationQP=destinationQP, packetSequenceNumber=packetSequenceNumber) #WRITE-ONLY
 	pkt = pkt/RETH(dmaLength=dmaLength,virtualAddress=virtualAddress,rKey=rKey)
 	pkt = pkt/Raw(payload)
 	pkt = pkt/iCRC(iCRC=iCRC_checksum)
@@ -83,10 +94,13 @@ def makeUDPPacket():
 	return pkt
 
 
-pkt = makeIPPacket()
 
-print("Sending packet", pkt)
-
-wrpcap("rocev2_pkt.pcap",pkt)
-sendp(pkt, iface="enp27s0f0")
-
+i = 0
+while True:
+	i = i + 1
+	address = random.randint(0, 2**64-1)
+	pkt = makeRocev2Write(payload=i, address=address)
+	print("Sending packet", pkt)
+	sendp(pkt, iface="p0")
+	wrpcap("rocev2_pkt.pcap",pkt)
+	time.sleep(1)
