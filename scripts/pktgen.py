@@ -112,10 +112,10 @@ while True:
 	payload = flowID
 	address = flowHashes[flowID]
 	
-	print("Transmitting for flow %i" %flowID)
+	print("Transmitting telemetry data. Flow:%i, payload:%i, hash:%i" %(flowID, payload, address))
 	
 	pkt = makeRocev2Write(payload=payload, address=address)
-	print("Sending packet", pkt)
+	#print("Sending packet", pkt)
 	sendp(pkt, iface="p0")
 	wrpcap("rocev2_pkt.pcap",pkt)
 	
